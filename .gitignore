@@ -161,3 +161,4 @@ cython_debug/
 
 # Config file for client
 client/.client.config
+.server.config
