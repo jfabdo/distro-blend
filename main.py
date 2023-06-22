@@ -3,6 +3,7 @@ import tqdm
 import os
 import threading
 import time
+import subprocess
 
 f = open('.server.config')
 
@@ -26,6 +27,7 @@ SERVER_PORT = int(variables['port'])
 BUFFER_SIZE = int(variables['BUFFER_SIZE'])
 SEPARATOR = variables['SEPARATOR']
 BACKUP = bool(variables['backup_file'])
+blender_path = variables['blender_path']
 
 class render(threading.Thread):
     def __init__(self, s):
@@ -35,6 +37,10 @@ class render(threading.Thread):
     
     def is_rendering(self):
         return self.rendering
+    
+    def render(self, filename):
+        self.rendering = True
+        subprocess.run(blender_path, "-b", filename)
  
         # helper function to execute the threads
     def run(self):
@@ -57,13 +63,12 @@ class render(threading.Thread):
                 f.write(bytes_read)
                 progress.update(len(bytes_read))
         client_socket.close()
-        self.rendering = True
+
+        self.render(filename)
+
         if not BACKUP:
             os.remove(filename)
         
-        
-        
-
 def firststep():
     s = socket.socket()
     s.bind((SERVER_HOST,SERVER_PORT))
@@ -72,8 +77,8 @@ def firststep():
         print(f"[*] Listening as {SERVER_HOST}:{SERVER_PORT}")
         thread = render(s)
         thread.start()
-        while not thread.is_rendering():
-            time.sleep(.001)
+        # while not thread.is_rendering():
+        #     time.sleep(.001)
     s.close()
 
 def main():
