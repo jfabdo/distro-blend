@@ -19,3 +19,6 @@ for line in f.readlines():
     variables[var] = val
     print(var + " = " + val)
 
+for variable in ['BUFFER_SIZE','port']:
+    variables[variable] = int(variables[variable])
+
