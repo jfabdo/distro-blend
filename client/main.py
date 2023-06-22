@@ -16,9 +16,33 @@ for line in f.readlines():
         print(line)
         continue
     var, val = line.split(':')
-    variables[var] = val
-    print(var + " = " + val)
 
+    variables[''.join(var.split())] = ''.join(val.split())
+
+f.close()
 for variable in ['BUFFER_SIZE','port']:
     variables[variable] = int(variables[variable])
+SEPARATOR = variables['SEPARATOR']
+BUFFER_SIZE = variables['BUFFER_SIZE']
+host = variables['host']
+port = variables['port']
+filename = variables['filename']
 
+filesize = os.path.getsize(filename)
+s = socket.socket()
+print(f"[+] Connecting to {host}:{port}")
+s.connect((host,port))
+print("[+] Connected.")
+
+s.send(f'{filename}{SEPARATOR}{filesize}'.encode())
+
+progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True,unit_divisor=1024)
+with open(filename,"rb") as f:
+    while True:
+        bytes_read = f.read(BUFFER_SIZE)
+        if not bytes_read:
+            break
+        s.sendall(bytes_read)
+        progress.update(len(bytes_read))
+
+s.close()
