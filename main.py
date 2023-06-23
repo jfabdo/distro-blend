@@ -95,20 +95,6 @@ def client():
         variables[variable] = int(variables[variable])
     sendfile()
 
-def receivefile():
-    SERVER_HOST = variables['host']
-    SERVER_PORT = int(variables['port'])
-
-    s = socket.socket()
-    s.bind((SERVER_HOST,SERVER_PORT))
-    s.listen(5)
-    print(f"[*] Listening as {SERVER_HOST}:{SERVER_PORT}")
-    thread = render(s)
-    thread.start()
-    thread.join()
-
-    s.close()
-
 def receivefiles():
     SERVER_HOST = variables['host']
     SERVER_PORT = int(variables['port'])
