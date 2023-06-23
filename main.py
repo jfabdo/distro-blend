@@ -88,7 +88,7 @@ def server():
     s.close()
 
 def client():
-    f = open('client/.client.config')
+    f = open('.client.config')
 
     variables['SEPARATOR'] = '<SEPARATOR>'
     variables['BUFFER_SIZE'] = '4096'

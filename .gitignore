@@ -160,6 +160,6 @@ cython_debug/
 #.idea/
 
 # Config file for client
-client/.client.config
+.client.config
 .server.config
 .0001.png
