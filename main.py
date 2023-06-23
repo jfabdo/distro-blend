@@ -143,6 +143,3 @@ if __name__ == "__main__":
         server()
     else:
         print("You didn't read the manual, did you, doofus? Use -c to run in client mode, and -s to run as a server")
-    
-
-    
