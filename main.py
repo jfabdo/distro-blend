@@ -135,9 +135,10 @@ def client():
 if __name__ == "__main__":
     if config['client']:
         client()
-    if config['server']:
+    elif config['server']:
         server()
-    print("You didn't read the manual, did you, doofus? Use -c to run in client mode, and -s to run as a server")
+    else:
+        print("You didn't read the manual, did you, doofus? Use -c to run in client mode, and -s to run as a server")
     
 
     
