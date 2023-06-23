@@ -15,6 +15,9 @@ variables = {}
 variables['SEPARATOR'] = '<SEPARATOR>'
 variables['BUFFER_SIZE'] = '4096'
 variables['port'] = '19999'
+variables['client_host'] = '192.168.1.101'
+variables['filename'] = 'data.thing'
+variables['server_host'] = '0.0.0.0'
 
 class render(threading.Thread):
     def __init__(self, s):
@@ -28,8 +31,9 @@ class render(threading.Thread):
     def render(self, filename):
         self.rendering = True
         fileroot = "".join(filename.split('.')[:-1])
+        variables["fileroot"] = fileroot
         os.mkdir(fileroot)
-        subprocess.run([variables['blender_path']+'blender', '-b', filename, '-o','//./' + fileroot + "/",'-E','CYCLES','-F','PNG','-a','--','--cycles-device','CUDA+CPU'])#'-f','1'])
+        subprocess.run([variables['blender_path']+'blender', '-b', filename, '-o','//./' + fileroot + "/",'-E','CYCLES','-F','PNG','-a','--','--cycles-device','CUDA'])#'-f','1'])
  
         # helper function to execute the threads
     def run(self):
@@ -38,11 +42,29 @@ class render(threading.Thread):
 
         print(f"[+] {address} is connected")
 
+        self.receive(client_socket)
+        filename = variables['filename']
+
+        self.render(filename)
+        fileroot = variables['fileroot']
+        with os.scandir(fileroot) as entries:
+            for entry in entries:
+                if not entry.is_dir():
+                    client.sendresult(f'{fileroot}/{filename}',client_socket)
+                if not variables['backup_file']:
+                    os.remove(f'{fileroot}/{entry}')
+
+        client_socket.close()
+        if not variables['backup_file']:
+            os.remove(fileroot)
+    
+    def receive(self,client_socket):
         received = client_socket.recv(variables['BUFFER_SIZE']).decode()
         filename, filesize = received.split(variables['SEPARATOR'])
-        variables['filename'] = filename = os.path.basename(filename)
-
         filesize = int(filesize)
+
+        variables['filename'] = filename = os.path.basename(filename)
+        # variables['filesize'] = filesize
 
         progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
         with open(filename, "wb") as f:
@@ -52,89 +74,82 @@ class render(threading.Thread):
                     break
                 f.write(bytes_read)
                 progress.update(len(bytes_read))
-        client_socket.close()
 
-        self.render(filename)
+class general:
+    def readvars(configname):
+        f = open(configname)
+        for line in f.readlines():
+            if ':' not in line:
+                print('Error:')
+                print(line)
+                continue
+            var, val = line.split(':')
 
-        if not variables['backup_file']:
-            os.remove(filename)
+            variables[''.join(var.split())] = ''.join(val.split())
+
+        f.close()
+        for variable in ['BUFFER_SIZE','port']:
+            variables[variable] = int(variables[variable])
+
+class server(general):
+    def __init__(self):
+        self.readvars('.server.config')
         
-def server():
-    f = open('.server.config')
+    def run(self):
+        self.receivefiles()
+    
+    def receivefiles(self):
+        SERVER_HOST = variables['server_host']
+        SERVER_PORT = int(variables['port'])
 
-    variables['host'] = "0.0.0.0"
-    for line in f.readlines():
-        if ':' not in line:
-            print('Error:')
-            print(line)
-            continue
-        var, val = line.split(':')
-
-        variables[''.join(var.split())] = ''.join(val.split())
-
-    for variable in ['BUFFER_SIZE','port']:
-        variables[variable] = int(variables[variable])
-    receivefiles()
-
-def client():
-    f = open('.client.config')
-
-    variables['host'] = '192.168.1.101'
-    variables['filename'] = 'data.thing'
-    for line in f.readlines():
-        if ':' not in line:
-            print('Error:')
-            print(line)
-            continue
-        var, val = line.split(':')
-
-        variables[''.join(var.split())] = ''.join(val.split())
-
-    f.close()
-    for variable in ['BUFFER_SIZE','port']:
-        variables[variable] = int(variables[variable])
-    sendfile()
-
-def receivefiles():
-    SERVER_HOST = variables['host']
-    SERVER_PORT = int(variables['port'])
-
-    s = socket.socket()
-    s.bind((SERVER_HOST,SERVER_PORT))
-    while True:
-        s.listen(5)
-        print(f"[*] Listening as {SERVER_HOST}:{SERVER_PORT}")
-        thread = render(s)
-        thread.start()
-        while not thread.is_rendering():
-            time.sleep(.001)
-    s.close()
-
-def sendfile():
-    SEPARATOR = variables['SEPARATOR']
-    BUFFER_SIZE = variables['BUFFER_SIZE']
-    host = variables['host']
-    port = variables['port']
-    filename = variables['filename']
-
-    filesize = os.path.getsize(filename)
-    s = socket.socket()
-    print(f"[+] Connecting to {host}:{port}")
-    s.connect((host,port))
-    print("[+] Connected.")
-
-    s.send(f'{filename}{SEPARATOR}{filesize}'.encode())
-
-    progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True,unit_divisor=1024)
-    with open(filename,"rb") as f:
+        s = socket.socket()
+        s.bind((SERVER_HOST,SERVER_PORT))
+        variables['s'] = s
         while True:
-            bytes_read = f.read(BUFFER_SIZE)
-            if not bytes_read:
-                break
-            s.sendall(bytes_read)
-            progress.update(len(bytes_read))
+            s.listen(5)
+            print(f"[*] Listening as {SERVER_HOST}:{SERVER_PORT}")
+            thread = render(s)
+            thread.start()
+            while not thread.is_rendering():
+                time.sleep(.001)
+        s.close()
 
-    s.close()
+class client(general):
+    def __init__(self):
+        
+        self.readvars('.client.config')
+    
+    def opensocket(self):
+        return socket.socket()
+
+    def send(self,filename,s):
+        
+        print("[+] Connected.")
+        SEPARATOR = variables['SEPARATOR']
+        filesize = os.path.getsize(filename)
+        s.send(f'{filename}{SEPARATOR}{filesize}'.encode())
+
+        progress = tqdm.tqdm(range(filesize), f"Sending {filename}", unit="B", unit_scale=True,unit_divisor=1024)
+        with open(filename,"rb") as f:
+            while True:
+                bytes_read = f.read(variables['BUFFER_SIZE'])
+                if not bytes_read:
+                    break
+                s.sendall(bytes_read)
+                progress.update(len(bytes_read))
+        
+
+    def sendblend(self):
+        s = self.opensocket()
+        s.connect((variables['client_host'],variables['port']))
+        print(f"[+] Connecting to {variables['client_host']}:{variables['port']}")
+        self.send(variables['filename'],s)
+        render().receive(s)
+        # s.close()
+        
+    def sendresult(self,filename,s):
+        self.send(filename,s)
+        # s.close()
 
 if __name__ == "__main__":
     if config['client']:
@@ -142,4 +157,4 @@ if __name__ == "__main__":
     elif config['server']:
         server()
     else:
-        print("You didn't read the manual, did you, doofus? Use -c to run in client mode, and -s to run as a server")
+        print("You didn't read the manual, did you? Use -c to run in client mode, and -s to run as a server")
