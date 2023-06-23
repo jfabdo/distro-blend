@@ -24,7 +24,7 @@ class render(threading.Thread):
     
     def render(self, filename):
         self.rendering = True
-        fileroot = filename.split('.')[0]
+        fileroot = "".join(filename.split('.')[:-1])
         os.mkdir(fileroot)
         subprocess.run([variables['blender_path']+'blender', '-b', filename, '-o','//./' + fileroot + "/",'-E','CYCLES','-F','PNG','-a','--','--cycles-device','CUDA+CPU'])#'-f','1'])
  
