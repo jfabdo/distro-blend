@@ -163,3 +163,4 @@ cython_debug/
 .client.config
 .server.config
 .0001.png
+data.csv
