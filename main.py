@@ -24,8 +24,9 @@ class render(threading.Thread):
     
     def render(self, filename):
         self.rendering = True
-        #os.mkdir(filename)
-        subprocess.run([variables['blender_path']+'blender', '-b', filename, '-o','//./','-F','PNG','-f','1'])
+        fileroot = filename.split('.')[0]
+        os.mkdir(fileroot)
+        subprocess.run([variables['blender_path']+'blender', '-b', filename, '-o','//./' + fileroot + "/",'-E','CYCLES','-F','PNG','-a','--','--cycles-device','CUDA+CPU'])#'-f','1'])
  
         # helper function to execute the threads
     def run(self):
