@@ -11,8 +11,11 @@ parser.add_argument('-c','--client', action="store_true", help="client mode")
 parser.add_argument('-s','--server', action="store_true", help="server mode")
 args = parser.parse_args()
 config = vars(args)
-
 variables = {}
+variables['SEPARATOR'] = '<SEPARATOR>'
+variables['BUFFER_SIZE'] = '4096'
+variables['port'] = '19999'
+
 class render(threading.Thread):
     def __init__(self, s):
         threading.Thread.__init__(self)
@@ -37,7 +40,8 @@ class render(threading.Thread):
 
         received = client_socket.recv(variables['BUFFER_SIZE']).decode()
         filename, filesize = received.split(variables['SEPARATOR'])
-        filename = os.path.basename(filename)
+        variables['filename'] = filename = os.path.basename(filename)
+
         filesize = int(filesize)
 
         progress = tqdm.tqdm(range(filesize), f"Receiving {filename}", unit="B", unit_scale=True, unit_divisor=1024)
@@ -58,10 +62,7 @@ class render(threading.Thread):
 def server():
     f = open('.server.config')
 
-    variables['SEPARATOR'] = '<SEPARATOR>'
-    variables['BUFFER_SIZE'] = '4096'
     variables['host'] = "0.0.0.0"
-    variables['port'] = '19999'
     for line in f.readlines():
         if ':' not in line:
             print('Error:')
@@ -73,6 +74,42 @@ def server():
 
     for variable in ['BUFFER_SIZE','port']:
         variables[variable] = int(variables[variable])
+    receivefiles()
+
+def client():
+    f = open('.client.config')
+
+    variables['host'] = '192.168.1.101'
+    variables['filename'] = 'data.thing'
+    for line in f.readlines():
+        if ':' not in line:
+            print('Error:')
+            print(line)
+            continue
+        var, val = line.split(':')
+
+        variables[''.join(var.split())] = ''.join(val.split())
+
+    f.close()
+    for variable in ['BUFFER_SIZE','port']:
+        variables[variable] = int(variables[variable])
+    sendfile()
+
+def receivefile():
+    SERVER_HOST = variables['host']
+    SERVER_PORT = int(variables['port'])
+
+    s = socket.socket()
+    s.bind((SERVER_HOST,SERVER_PORT))
+    s.listen(5)
+    print(f"[*] Listening as {SERVER_HOST}:{SERVER_PORT}")
+    thread = render(s)
+    thread.start()
+    thread.join()
+
+    s.close()
+
+def receivefiles():
     SERVER_HOST = variables['host']
     SERVER_PORT = int(variables['port'])
 
@@ -87,26 +124,7 @@ def server():
             time.sleep(.001)
     s.close()
 
-def client():
-    f = open('.client.config')
-
-    variables['SEPARATOR'] = '<SEPARATOR>'
-    variables['BUFFER_SIZE'] = '4096'
-    variables['host'] = '192.168.1.101'
-    variables['port'] = '19999'
-    variables['filename'] = 'data.thing'
-    for line in f.readlines():
-        if ':' not in line:
-            print('Error:')
-            print(line)
-            continue
-        var, val = line.split(':')
-
-        variables[''.join(var.split())] = ''.join(val.split())
-
-    f.close()
-    for variable in ['BUFFER_SIZE','port']:
-        variables[variable] = int(variables[variable])
+def sendfile():
     SEPARATOR = variables['SEPARATOR']
     BUFFER_SIZE = variables['BUFFER_SIZE']
     host = variables['host']
