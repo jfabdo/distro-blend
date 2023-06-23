@@ -78,7 +78,7 @@ class commonality:
 class client(commonality):
     def clientmode(self):
         # the ip address or hostname of the server, the receiver
-        host = "192.168.1.130"
+        host = "127.0.0.1"
         
         # the name of file we want to send, make sure it exists
         filename = "data.csv"
